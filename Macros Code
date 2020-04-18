@@ -1,0 +1,338 @@
+Sub Demand()
+Dim myRange As Range
+Dim MyCell As Range
+Dim OCell As Range
+Dim ans As Range
+Set OCell = Range("Manual!F29:F212")
+Set ans = Range("Order!J2:J185")
+Set myRange = Range("Order!A2:A185")
+For Each MyCell In myRange
+If MyCell.Offset(0, 5).Value <= MyCell.Offset(0, 1).Value Then
+Needed = MyCell.Offset(0, 2).Value - MyCell.Offset(0, 5).Value
+Rec = 1 / MyCell.Offset(0, 6).Value
+Pack = Needed * Rec
+MyCell.Offset(0, 9).Value = MyCell.Value
+MyCell.Offset(0, 10).Value = WorksheetFunction.Ceiling(Pack, 1)
+End If
+Next MyCell
+OCell.Value = ans.Value
+OCell.Offset(0, 1).Value = ans.Offset(0, 1).Value
+End Sub
+
+
+
+Sub Filter()
+Dim sRange As Range
+Dim bRange As Range
+Dim MyCell As Range
+Dim bCell As Range
+Set sRange = Range("Sheet6!A1:A979")
+Set bRange = Range("Sheet2!A5:A847")
+For Each bCell In bRange
+x = bCell.Value
+v = 0
+For Each MyCell In sRange
+If MyCell.Value = x Then
+v = v + 1
+End If
+Next MyCell
+If v = 0 Then
+bCell.EntireRow.Delete
+End If
+Next bCell
+End Sub
+
+
+Sub NoWeekends()
+Dim row As Range
+Dim MyCell As Range
+Set row = Range("Sheet2!C3:UD3")
+For Each MyCell In row
+If MyCell.Value = "Sat" Then
+MyCell.EntireColumn.Delete
+End If
+If MyCell.Value = "Sun" Then
+MyCell.EntireColumn.Delete
+End If
+Next MyCell
+End Sub
+
+
+Sub Zeros()
+Dim myRange As Range
+Dim MyCell As Range
+Set myRange = Range("Sheet2!C5:OE847")
+For Each MyCell In myRange
+If IsEmpty(MyCell) Then
+MyCell.Value = 0
+End If
+Next MyCell
+End Sub
+
+Sub Outliers()
+Dim myRange As Range
+Dim MyCell As Range
+Set myRange = Range("Sheet2!C5:C847")
+For Each MyCell In myRange
+Dim aCell As Range
+Dim row As Range
+Dim av As Long
+Dim st As Long
+Dim thresh As Long
+Set row = Range(MyCell, MyCell.Offset(0, 393))
+av = WorksheetFunction.Average(row)
+iqr = WorksheetFunction.Quartile(row, 3) - WorksheetFunction.Quartile(row, 1)
+thresh = 2 * iqr
+For Each aCell In row
+If Abs(aCell.Value - av) > thresh Then
+aCell.Value = Null
+End If
+Next aCell
+Next MyCell
+End Sub
+
+
+Sub Averages()
+Dim myRange As Range
+Dim MyCell As Range
+Dim aCell As Range
+Dim act5 As Range
+Dim act2 As Range
+Dim actST As Range
+Set act2 = Range("Demand!C5")
+Set act5 = Range("Stats!B2")
+Set actST = Range("Stats!B3")
+For Counter = 0 To 843
+avg = 0
+Sum = 0
+div = 393
+m = 0
+Var = 0
+std = 0
+For Each MyCell In Range(act2.Offset(Counter, 0), act2.Offset(Counter, 392))
+Sum = Sum + MyCell.Value
+If IsEmpty(MyCell) Then
+div = div - 1
+Else
+div = div
+End If
+Next MyCell
+m = WorksheetFunction.Max(div, 1)
+avg = Sum / m
+act5.Offset(0, Counter).Value = avg
+For Each aCell In Range(act2.Offset(Counter, 0), act2.Offset(Counter, 392))
+Add = aCell.Value - avg
+Var = Var + Add * Add
+If IsEmpty(MyCell) Then
+div = div - 1
+Else
+div = div
+End If
+Next aCell
+m = WorksheetFunction.Max(div, 1)
+Var = Var / m
+std = WorksheetFunction.SqrtPi(Var)
+actST.Offset(0, Counter).Value = std
+Next Counter
+End Sub
+
+
+Sub NBS()
+Dim p As Range
+Set p = Range("Negbin!B5:GC5")
+For Each i In p
+num = 500
+f = i.Offset(1, 0).Value
+pr = i.Value
+Prob = 0
+While Prob < 0.0001
+num = num - 1
+Prob = WorksheetFunction.NegBinom_Dist(f, num, pr, True)
+Wend
+If num - 1 > i.Offset(-3, 0).Value Then
+i.Offset(2, 0).Value = num
+Else
+i.Offset(2, 0).Value = WorksheetFunction.Ceiling(i.Offset(-3, 0).Value + 3.09 * i.Offset(-2, 0).Value, 1)
+End If
+Next i
+End Sub
+
+
+Sub InvUpdate()
+Item = Application.InputBox("Enter the item number of interest", , , , , , , Type:=1)
+Dim myRange As Range
+Dim aCell As Range
+Set myRange = Range("Order!A2:A185")
+v = 0
+For Each aCell In myRange
+If aCell.Value = Item Then
+v = v + 1
+End If
+Next aCell
+If v = 0 Then
+MsgBox "This item number was not found"
+Else
+Units = Application.InputBox("Are you entering in number of containers or individual units? (Type C for containers or U for Units)", , , , , , , Type:=2)
+If Units = "U" Then
+For Each aCell In myRange
+x = aCell.Value
+If x = Item Then
+Value = Application.InputBox("Enter inventory value", , , , , , , Type:=1)
+aCell.Offset(0, 5).Value = Value
+aCell.Offset(0, 4).Value = WorksheetFunction.Ceiling(aCell.Offset(0, 5).Value / aCell.Offset(0, 3).Value, 1)
+If aCell.Offset(0, 5).Value <= aCell.Offset(0, 1).Value Then
+MsgBox "This item is due for ordering. Click the Demand Sort Button on the Order Sheet to see how many packages to order."
+Else
+MsgBox "Updated in Order Sheet"
+End If
+End If
+Next aCell
+ElseIf Units = "C" Then
+For Each aCell In myRange
+x = aCell.Value
+If x = Item Then
+Value = Application.InputBox("Enter inventory value", , , , , , , Type:=1)
+aCell.Offset(0, 4).Value = Value
+aCell.Offset(0, 5).Value = aCell.Offset(0, 3).Value * aCell.Offset(0, 4)
+If aCell.Offset(0, 5).Value <= aCell.Offset(0, 1).Value Then
+MsgBox "This item is due for ordering. Click the Demand Sort Button on the Order Sheet to see how many packages to order."
+Else
+MsgBox "Updated in Order Sheet"
+End If
+End If
+Next aCell
+Else
+MsgBox "Invalid Input"
+End If
+End If
+End Sub
+
+
+Sub DemUpdate()
+Item = Application.InputBox("Enter the item number of interest", , , , , , , Type:=1)
+Dim myRange As Range
+Dim aCell As Range
+Dim dCell As Range
+Dim iRange As Range
+Set iRange = Range("Negbin!B1:AFL1")
+Set myRange = Range("Demand!A5:A200")
+v = 0
+For Each aCell In myRange
+If aCell.Value = Item Then
+v = v + 1
+End If
+Next aCell
+If v = 0 Then
+MsgBox "This item number was not found"
+Else
+Values = Application.InputBox("Enter the demand values as an array in the form {value 1, value 2...}. For example: {58, 61, 49}.", , , , , , , Type:=64)
+For Each aCell In myRange
+If aCell.Value = Item Then
+num = 549
+For i = 0 To 1000
+x = aCell.Offset(0, num + i)
+If IsEmpty(x) Then
+For a = 0 To UBound(Values) - 1
+aCell.Offset(0, num + i + a).Value = Values(a + 1)
+Next a
+Exit For
+End If
+Next i
+MsgBox "Demand values have been inputed for the selected item. Click the Update button on the NegBin sheet to attain new Reorder Point and Order Up To level for this item."
+End If
+Next aCell
+End If
+For Each aCell In myRange
+If aCell.Value = Item Then
+av = aCell.Offset(0, 1008).Value
+sd = aCell.Offset(0, 1009).Value
+End If
+Next aCell
+For Each dCell In iRange
+If dCell.Value = Item Then
+dCell.Offset(1, 0).Value = av
+dCell.Offset(2, 0) = sd
+End If
+Next dCell
+End Sub
+
+
+
+Sub DemEntry()
+Item = Application.InputBox("Enter the item number of interest", , , , , , , Type:=1)
+Dim myRange As Range
+Dim aCell As Range
+Dim dCell As Range
+Dim iRange As Range
+Set myRange = Range("Demand!A5:A200")
+Set iRange = Range("Negbin!B1:AFL1")
+v = 0
+For Each aCell In myRange
+If aCell.Value = Item Then
+v = v + 1
+End If
+Next aCell
+If v = 0 Then
+MsgBox "This item number was not found"
+Else
+Values = Application.InputBox("Enter the demand mean and standard deviation as an array in the form {mean, sd}. For example: {63, 13}", , , , , , , Type:=64)
+av = Values(1)
+sd = Values(2)
+For Each dCell In iRange
+If dCell.Value = Item Then
+dCell.Offset(1, 0).Value = av
+dCell.Offset(2, 0).Value = sd
+End If
+Next dCell
+End If
+End Sub
+
+Sub InvUpdate()
+Item = Application.InputBox("Enter the item number of interest", , , , , , , Type:=1)
+Dim myRange As Range
+Dim aCell As Range
+Set myRange = Range("Order!A2:A185")
+v = 0
+For Each aCell In myRange
+If aCell.Value = Item Then
+v = v + 1
+End If
+Next aCell
+If v = 0 Then
+MsgBox "This item number was not found"
+Else
+Units = Application.InputBox("Are you entering in number of containers or individual units? (Type C for containers or U for Units)", , , , , , , Type:=2)
+If Units = "U" Then
+For Each aCell In myRange
+x = aCell.Value
+If x = Item Then
+Value = Application.InputBox("Enter inventory value", , , , , , , Type:=1)
+aCell.Offset(0, 5).Value = Value
+aCell.Offset(0, 4).Value = WorksheetFunction.Ceiling(aCell.Offset(0, 5).Value / aCell.Offset(0, 3).Value, 1)
+If aCell.Offset(0, 5).Value <= aCell.Offset(0, 1).Value Then
+MsgBox "This item is due for ordering. Click the Demand Sort Button on the Order Sheet to see how many packages to order."
+Else
+MsgBox "Updated in Order Sheet"
+End If
+End If
+Next aCell
+ElseIf Units = "C" Then
+For Each aCell In myRange
+x = aCell.Value
+If x = Item Then
+Value = Application.InputBox("Enter inventory value", , , , , , , Type:=1)
+aCell.Offset(0, 4).Value = Value
+aCell.Offset(0, 5).Value = aCell.Offset(0, 3).Value * aCell.Offset(0, 4)
+If aCell.Offset(0, 5).Value <= aCell.Offset(0, 1).Value Then
+MsgBox "This item is due for ordering. Click the Demand Sort Button on the Order Sheet to see how many packages to order."
+Else
+MsgBox "Updated in Order Sheet"
+End If
+End If
+Next aCell
+Else
+MsgBox "Invalid Input"
+End If
+End If
+End Sub
+
