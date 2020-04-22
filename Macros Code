@@ -13,10 +13,12 @@ Rec = 1 / MyCell.Offset(0, 6).Value
 Pack = Needed * Rec
 MyCell.Offset(0, 9).Value = MyCell.Value
 MyCell.Offset(0, 10).Value = WorksheetFunction.Ceiling(Pack, 1)
+MyCell.Offset(0, 11).Value = Needed
 End If
 Next MyCell
 OCell.Value = ans.Value
 OCell.Offset(0, 1).Value = ans.Offset(0, 1).Value
+OCell.Offset(0, 2).Value = ans.Offset(0, 2).Value
 End Sub
 
 
@@ -139,13 +141,13 @@ End Sub
 
 Sub NBS()
 Dim p As Range
-Set p = Range("Negbin!B5:GC5")
+Set p = Range("Negbin!B5:ADL5")
 For Each i In p
 num = 500
 f = i.Offset(1, 0).Value
 pr = i.Value
 Prob = 0
-While Prob < 0.0001
+While Prob < 0.001
 num = num - 1
 Prob = WorksheetFunction.NegBinom_Dist(f, num, pr, True)
 Wend
